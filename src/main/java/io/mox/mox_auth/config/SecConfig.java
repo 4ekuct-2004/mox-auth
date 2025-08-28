@@ -1,5 +1,6 @@
 package io.mox.mox_auth.config;
 
+import io.mox.mox_auth.security.auth.AuthFailureHandler;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,18 +23,20 @@ import java.io.IOException;
 public class SecConfig {
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final AuthFailureHandler authFailureHandler;
 
-    public SecConfig(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+    public SecConfig(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder, AuthFailureHandler authFailureHandler) {
         this.userDetailsService = userDetailsService;
         this.passwordEncoder = passwordEncoder;
+        this.authFailureHandler = authFailureHandler;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .requiresChannel(channel -> channel
-                        .anyRequest().requiresSecure()
-                )
+                //.requiresChannel(channel -> channel
+                //        .anyRequest().requiresSecure()
+                //)
                 .sessionManagement(session -> session
                         .maximumSessions(1).maxSessionsPreventsLogin(false))
                 .authorizeHttpRequests(auth -> auth
@@ -44,7 +47,7 @@ public class SecConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/login")
-                        .failureUrl("/login?error=true")
+                        .failureHandler(authFailureHandler)
                         .defaultSuccessUrl("/welcome", true)
                         .permitAll()
                 )
@@ -61,7 +64,8 @@ public class SecConfig {
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.disable())
                         .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self' ..."))
-                );
+                )
+                .requestCache(requestCache -> requestCache.disable());
         ;
 
         return http.build();

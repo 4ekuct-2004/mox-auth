@@ -10,8 +10,10 @@
 <div class="container">
     <h2>Вход</h2>
 
-    <div th:if="${param.error}" class="error-message">
-        <p>Неверное имя пользователя или пароль.</p>
+    <div th:if="${error}" class="error-message">
+        <span>
+                [[${message}]]
+        </span>
     </div>
 
     <div th:if="${param.logout}" class="success-message">
