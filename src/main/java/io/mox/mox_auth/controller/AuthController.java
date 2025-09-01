@@ -3,6 +3,7 @@ package io.mox.mox_auth.controller;
 import io.mox.mox_auth.dto.UserRegisterRequest;
 import io.mox.mox_auth.model.User;
 import io.mox.mox_auth.security.auth.AuthFailureHandler;
+import io.mox.mox_auth.service.LoginAttemptService;
 import io.mox.mox_auth.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -11,17 +12,16 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 @Controller
 public class AuthController {
     private UserService userService;
     private AuthFailureHandler authFailureHandler;
+    private LoginAttemptService loginAttemptService;
 
-    public AuthController(UserService userService, AuthFailureHandler authFailureHandler) {
+    public AuthController(UserService userService, AuthFailureHandler authFailureHandler, LoginAttemptService loginAttemptService) {
         this.userService = userService;
         this.authFailureHandler = authFailureHandler;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @PostMapping("/register")
@@ -41,10 +41,10 @@ public class AuthController {
     @GetMapping("/login")
     public String login(HttpServletRequest request, Model model) {
         String ipAddress = request.getRemoteAddr();
+        String username = request.getParameter("username");
         HttpSession session = request.getSession(false);
 
-        if(authFailureHandler.isBlocked(ipAddress)) {
-
+        if(loginAttemptService.isBlocked(ipAddress, username)) {
             model.addAttribute("error", "blocked");
             model.addAttribute("message", "Слишком много попыток. Попробуйте позже.");
             return "login";
@@ -52,15 +52,10 @@ public class AuthController {
 
         if(session != null) {
             String error = (String) session.getAttribute("error");
-            String message = (String) session.getAttribute("message");
 
             if (error != null) {
                 model.addAttribute("error", error);
                 session.removeAttribute("error");
-            }
-            if (message != null) {
-                model.addAttribute("message", message);
-                session.removeAttribute("message");
             }
         }
 

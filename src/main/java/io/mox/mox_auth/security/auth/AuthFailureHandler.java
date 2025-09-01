@@ -1,5 +1,9 @@
 package io.mox.mox_auth.security.auth;
 
+import io.mox.mox_auth.model.LoginAttempt;
+import io.mox.mox_auth.repository.LoginRepo;
+import io.mox.mox_auth.repository.UserRepo;
+import io.mox.mox_auth.service.LoginAttemptService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,61 +14,48 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class AuthFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
-    private static final int MAX_ATTEMPTS = 3;
-    private static final int LOCK_TIME_MINUTES = 30;
-    
-    private final Map<String, LoginAttempt> attemptsCache = new ConcurrentHashMap<>(); // TODO: по идее это бы в базу какую-нибудь сохранять...
+    private final LoginAttemptService loginAttemptService;
+    private final UserRepo userRepo;
+    private final LoginRepo loginRepo;
+
+    public AuthFailureHandler(final LoginAttemptService loginAttemptService, UserRepo userRepo, LoginRepo loginRepo) {
+        this.loginAttemptService = loginAttemptService;
+        this.userRepo = userRepo;
+        this.loginRepo = loginRepo;
+    }
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response,
                                         AuthenticationException exception) throws IOException, ServletException {
         String ipAddress = request.getRemoteAddr();
-        LoginAttempt attempt = attemptsCache.getOrDefault(ipAddress, new LoginAttempt());
+        String username = request.getParameter("username");
+        HttpSession session = request.getSession(false);
 
-        attempt.incrementAttempts();
-
-        HttpSession session = request.getSession();
-
-        if(attempt.getAttempts() >= MAX_ATTEMPTS) {
-            attempt.setLockoutTime(LocalDateTime.now().minusMinutes(LOCK_TIME_MINUTES));
-
-            session.setAttribute("error", "blocked");
-            session.setAttribute("message", "Слишком много попыток. Повторите позже.");
-
+        if(!userRepo.existsByUsername(username)) {
+            session.setAttribute("error", "Неправильное имя пользователя или пароль.");
             response.sendRedirect("/login");
-            return;
         }
+        else {
+            LoginAttempt attempt = new LoginAttempt();
+            attempt.setIpAddress(ipAddress);
 
-        attemptsCache.put(ipAddress, attempt);
+            attempt.setAccount(userRepo.findByUsername(username));
 
-        session.setAttribute("error", "invalid_credentials");
-        session.setAttribute("message", "Неверные имя пользователя или пароль.");
-        response.sendRedirect("/login");
-    }
+            attempt.setSuccessful(false);
+            attempt.setLoginTimestamp(LocalDateTime.now());
 
-    public boolean isBlocked(String ipAddress) {
-        LoginAttempt attempt = attemptsCache.get(ipAddress);
+            loginAttemptService.recordFailedAttempt(attempt);
+            loginRepo.save(attempt);
 
-        return attempt != null &&
-                attempt.getLockoutTime() != null &&
-                attempt.getLockoutTime().isBefore(attempt.getLockoutTime());
-    }
-
-    private static class LoginAttempt {
-        private int attempts;
-        private LocalDateTime lockoutTime;
-
-        public void incrementAttempts() { attempts++; }
-        public int getAttempts() { return attempts; }
-        public LocalDateTime getLockoutTime() { return lockoutTime; }
-        public void setLockoutTime(LocalDateTime lockoutTime) { this.lockoutTime = lockoutTime; }
+            session.setAttribute("error", loginAttemptService.isBlocked(username, ipAddress) ? "Слишком много попыток. Повторите позже." :
+                    "Неправильное имя пользователя или пароль.");
+            response.sendRedirect("/login");
+        }
     }
 
 }

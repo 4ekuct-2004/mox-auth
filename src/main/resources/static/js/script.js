@@ -11,8 +11,8 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
     let isValid = true;
 
-    if (username.length < 3) {
-        document.getElementById('username-error').textContent = 'Логин должен содержать минимум 3 символа';
+    if (username.length < 3 || username.length > 20) {
+        document.getElementById('username-error').textContent = 'Логин должен содержать от 3 до 20 символов';
         isValid = false;
     }
 
