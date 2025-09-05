@@ -2,7 +2,6 @@ package io.mox.mox_auth.controller;
 
 import io.mox.mox_auth.dto.UserRegisterRequest;
 import io.mox.mox_auth.model.User;
-import io.mox.mox_auth.security.auth.AuthFailureHandler;
 import io.mox.mox_auth.service.LoginAttemptService;
 import io.mox.mox_auth.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,17 +9,17 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @Controller
 public class AuthController {
     private UserService userService;
-    private AuthFailureHandler authFailureHandler;
     private LoginAttemptService loginAttemptService;
 
-    public AuthController(UserService userService, AuthFailureHandler authFailureHandler, LoginAttemptService loginAttemptService) {
+    public AuthController(UserService userService, LoginAttemptService loginAttemptService) {
         this.userService = userService;
-        this.authFailureHandler = authFailureHandler;
         this.loginAttemptService = loginAttemptService;
     }
 
@@ -45,8 +44,7 @@ public class AuthController {
         HttpSession session = request.getSession(false);
 
         if(loginAttemptService.isBlocked(ipAddress, username)) {
-            model.addAttribute("error", "blocked");
-            model.addAttribute("message", "Слишком много попыток. Попробуйте позже.");
+            model.addAttribute("error", "Слишком много попыток. Попробуйте позже.");
             return "login";
         }
 

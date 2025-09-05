@@ -2,6 +2,7 @@ package io.mox.mox_auth.model;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
 
@@ -17,13 +18,19 @@ public class LoginAttempt {
     @ManyToOne
     private User account;
 
-    @CreationTimestamp
+    @CreatedDate
     private LocalDateTime loginTimestamp;
 
     @Column(nullable = false)
     private boolean successful;
 
     public LoginAttempt() {}
+    public LoginAttempt(String ipAdress, User account, boolean successful, LocalDateTime loginTimestamp) {
+        this.ipAddress = ipAdress;
+        this.account = account;
+        this.successful = successful;
+        this.loginTimestamp = loginTimestamp;
+    }
 
     public long getId() { return id; }
     public String getIpAddress() { return ipAddress; }
